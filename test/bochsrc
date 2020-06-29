@@ -1,0 +1,3 @@
+floppya: 1_44=boot, status=inserted
+boot: a
+display_library: sdl
