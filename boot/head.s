@@ -62,7 +62,7 @@ setup_gdt:
 	ret
 
 init_msg:
-	asciz "Unknown interrupt\r\n"
+	.asciz "Unknown interrupt\r\n"
 
 .align 4
 ignore_int:
@@ -119,7 +119,7 @@ _gdt:
 
 .fill 1024, 4, 0
 
-.aligh 4
+.align 4
 _stack_start:
 	.long .
 	.word 0x10
