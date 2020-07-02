@@ -97,7 +97,8 @@ idt_descr:
 .align 4
 	.word 0
 gdt_descr:
-	.word 256*8-1  /*256 items */
+	.word 256*8-1  /* 256 items */
+	.long _gdt
 
 .align 8
 _idt:

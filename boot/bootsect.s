@@ -122,7 +122,7 @@ ok1_read:
 ok2_read:  /* read %ax sectors*/
 	call read_track
 	movw %ax, %cx  /* save the read count to %cx */
-	addw %ax, sread
+	addw sread, %ax
 	cmpw sectors, %ax
 	jne ok3_read
 	movw $1, %ax
