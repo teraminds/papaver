@@ -1,5 +1,7 @@
 /**/
 
+.globl _start
+_start:
 start:
 	movw $0x10, %ax
 	movw %ax, %ds
@@ -33,7 +35,7 @@ after_page_tables:
 	pushl $0
 	pushl $0
 	pushl $L6
-	pushl $_main
+	pushl $main
 	jmp setup_paging
 L6:
 	jmp L6
@@ -86,6 +88,9 @@ ignore_int:
 	popl %ecx
 	popl %eax
 	iret
+
+_printk:
+	ret
 
 .align 4
 	.word 0
