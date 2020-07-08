@@ -1,0 +1,6 @@
+*.o
+
+*test*
+
+boot/*
+!boot/a.s

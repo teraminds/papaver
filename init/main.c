@@ -1,4 +1,7 @@
 /* main.c */
+#include <unistd.h>
+
+static inline _syscall0(int, fork)
 
 int main() {
 	char *p = 0xb8004;
