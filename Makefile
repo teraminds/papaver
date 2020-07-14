@@ -18,5 +18,4 @@ boot/head.o: boot/head.s
 	objcopy -Obinary boot/head.o boot/head
 
 init/main.o: init/main.c
-	gcc -c init/main.c -o init/main.o
-	objcopy -Obinary init/main.o init/main
+	gcc -c init/main.c -nostdinc -Iinclude -o init/main.o

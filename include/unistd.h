@@ -8,7 +8,7 @@ type name(void) \
 { \
 	long __res; \
 	__asm__ __volatile__ ( \
-		int $0x80 \
+		"int $0x80" \
 		: "=a"(__res) \
 		: "0"(__NR_##name)); \
 	if (__res >= 0) \

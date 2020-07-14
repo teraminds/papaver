@@ -1,5 +1,6 @@
 /* main.c */
 #include <unistd.h>
+#include <asm/system.h>
 
 static inline _syscall0(int, fork)
 

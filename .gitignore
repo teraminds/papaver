@@ -4,3 +4,6 @@
 
 boot/*
 !boot/a.s
+
+system
+image
