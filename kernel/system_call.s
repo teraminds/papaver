@@ -24,3 +24,10 @@ _system_call:
 	movw %dx, %fs  /* fs points to local data space */
 	call _sys_call_table(, %eax, 4)
 	pushl %eax  /* push return value */
+
+
+.align 4
+_sys_fork:
+	call _find_empty_process
+	testl %eax, %eax
+	js

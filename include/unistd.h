@@ -17,4 +17,7 @@ type name(void) \
 	return -1; \
 }
 
+
+#define __NR_fork       2
+
 #endif

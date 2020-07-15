@@ -7,7 +7,7 @@
 
 void trap_init() {
 	int i = 0;
-	for (int i=17; i<48; i++) {
+	for (i=17; i<48; i++) {
 		set_trap_gate(i, &reserved);
 	}
 }

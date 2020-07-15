@@ -9,6 +9,15 @@ int main() {
 	*p = 'M';
 	*(p+1) = 0x07;
 
+	trap_init();
+	sched_init();
+
+	move_to_user_mode();
+	if (!fork()) {
+		// child process
+		init();
+	}
+	// parent process
 	while (1);
 
 	return 0;
