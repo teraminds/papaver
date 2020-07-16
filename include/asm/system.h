@@ -1,5 +1,8 @@
 /* include/asm/system.h */
 
+#ifndef _SYSTEM_H
+#define _SYSTEM_H
+
 #define move_to_user_mode() \
 __asm__("movl %%esp, %%eax;" \
 	"pushl $0x17;" \
@@ -43,3 +46,6 @@ __asm__( "movw %%dx, %%ax;" \
 #define set_intr_gate(n, addr) _set_gate(&idt[n], 14, 0, addr)
 #define set_trap_gate(n, addr) _set_gate(&idt[n], 15, 0, addr)
 #define set_system_gate(n, addr) _set_gate(&idt[n], 15, 3, addr)
+
+
+#endif
