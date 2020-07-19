@@ -2,7 +2,7 @@
 
 #include <linux/sched.h>
 
-
+struct task_struct *current = NULL;
 struct task_struct *task[NR_TASKS] = {NULL};
 
 void sched_init() {

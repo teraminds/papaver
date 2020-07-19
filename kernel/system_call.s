@@ -29,5 +29,14 @@ _system_call:
 .align 4
 _sys_fork:
 	call _find_empty_process
-	testl %eax, %eax
-	js
+	testl %eax, %eax  /* negative means error */
+	js 1f
+	push %gs
+	pushl %esi
+	pushl %edi
+	pushl %ebp
+	pushl %eax
+	call _copy_process
+	addl $20, %esp
+1:
+	ret

@@ -16,7 +16,7 @@ start:
 	int $0x10
 	movw %dx, 0
 
-/* get memory size */
+/* get extended memory size */
 	movb $0x88, %ah
 	int $0x15
 	movw %ax, 2

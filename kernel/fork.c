@@ -4,6 +4,27 @@
 
 long last_pid = 0;  // last used pid
 
+
+/* the params are pushed into stack by interrupt call and function call */
+int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
+		long ebx, long ecx, long edx,
+		long fs, long es, long ds,
+		long eip, long cs, long eflags, long esp, long ss) {
+	struct task_struct *p;
+	int i;
+	struct file *f;
+
+	p = (struct task_struct *)get_free_page();
+	if (!p)
+		return -EAGAIN;
+	task[nr] = p;
+	*p = *current;  // copy the task struct of current process to p, then modify
+	p->pid = last_pid;  // ??? what if the last_pid was modifided by another interrupt calling fork ??
+	p->father = current->pid;
+
+	return last_pid;
+}
+
 int find_empty_process() {
 	int i;
 
