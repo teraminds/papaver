@@ -1,11 +1,19 @@
 /* kernel/system_call.s*/
 
+.equ state 0
+.equ counter 4
+
 .equ nr_system_calls 72
 
 .align 4
 bad_sys_call:
 	movl $-1, %eax
 	iret
+
+.align 4
+reschedule:
+	pushl $ret_from_sys_call
+	jmp _schedule
 
 .align 4
 _system_call:
@@ -24,6 +32,24 @@ _system_call:
 	movw %dx, %fs  /* fs points to local data space */
 	call _sys_call_table(, %eax, 4)
 	pushl %eax  /* push return value */
+	movl _current, %eax
+	cmpl $0, state(%eax)  // state==0, runnable
+	jne reschedule
+	cmpl $0, counter(%eax)  // time out
+	je reschedule
+ret_from_sys_call:
+	movl _current, %eax
+	movl _task, %eax
+	je 3f
+3:
+	popl %eax  // return value
+	popl %ebx
+	popl %ecx
+	popl %edx
+	pop %fs
+	pop %es
+	pop %ds
+	iret
 
 
 .align 4
