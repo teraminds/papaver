@@ -44,7 +44,7 @@ no_error_code:
 	movw %dx, %es
 	movw %dx, %fs
 	call *%eax
-	addl $8, $esp
+	addl $8, %esp
 	pop %fs
 	pop %es
 	pop %ds
@@ -69,7 +69,7 @@ _debug:
 
 /* int 2, nmi */
 _nmi:
-	pushl %_do_nmi
+	pushl $_do_nmi
 	jmp no_error_code
 
 /* int 3, breakpoint */

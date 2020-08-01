@@ -6,6 +6,7 @@
 extern int errno;
 
 #define EAGAIN    11      // resource unavailable
+#define ENOMEM    12      // out of memory
 
 
 #endif

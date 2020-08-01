@@ -3,6 +3,7 @@
 #include <asm/system.h>
 
 static inline _syscall0(int, fork)
+static inline _syscall0(int, pause)
 
 #define EXT_MEM_K (*(unsigned short*)0x90002)
 
@@ -16,6 +17,7 @@ int main() {
 	*p = 'M';
 	*(p+1) = 0x07;
 #endif
+	int i = 100000;
 
 	memory_end = (1<<20) + (EXT_MEM_K<<10);
 	memory_end &= 0xfffff000;  // align with 4KB
@@ -36,10 +38,28 @@ int main() {
 	move_to_user_mode();
 	if (!fork()) {
 		// child process
-		init();
+		p = 0xb8006;
+		*p = 'a';
+		*(p+1) = 0x07;
+		while (1) {
+			i = 100000;
+			while(i--);
+			*p = (*p-'a'+1) % 26 + 'a';
+		}
+		//init();
 	}
 	// parent process
+	p = 0xb8008;
+	*p = 'A';
+	*(p+1) = 0x07;
+	while (1) {
+		i = 100000;
+		while(i--);
+		*p = (*p-'A'+1) % 26 + 'A';
+	}
 	while (1);
+	for (;;)
+		pause();
 
 	return 0;
 }

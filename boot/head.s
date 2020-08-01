@@ -1,6 +1,7 @@
 /**/
 
 .globl _start
+_pg_dir:
 _start:
 start:
 	movw $0x10, %ax
@@ -30,6 +31,17 @@ start:
 
 	jmp after_page_tables
 
+.org 0x1000
+pg0:  /* page table n */
+.org 0x2000
+pg1:
+.org 0x3000
+pg2:
+.org 0x4000
+pg3:
+
+.org 0x5000
+
 after_page_tables:
 	pushl $0
 	pushl $0
@@ -40,7 +52,30 @@ after_page_tables:
 L6:
 	jmp L6
 
+.align 4
 setup_paging:
+	movl $1024*5, %ecx  /* clear 5 pages, 1 page dir and 4 page tables */
+	xorl %eax, %eax
+	xorl %edi, %edi  /* pg_dir is at 0x00 */
+	cld
+	rep stosl
+	movl $pg0+7, _pg_dir  /* pg dir entry n, r/w=1, u/s=1, p=1 */
+	movl $pg1+7, _pg_dir+4
+	movl $pg2+7, _pg_dir+8
+	movl $pg3+7, _pg_dir+12
+	movl $7, %eax
+	movl $pg0, %edi
+	movl $1024*4, %ecx
+	cld
+1:
+	stosl
+	addl $0x1000, %eax
+	loop 1b
+	xorl %eax, %eax  /* pg_dir is at 0x00 */
+	movl %eax, %cr3  /* cr3 - pdbr*/
+	movl %cr0, %eax
+	orl $0x80000000, %eax  /* enable PG, bit 31*/
+	movl %eax, %cr0
 	ret
 
 setup_idt:
@@ -122,10 +157,3 @@ _gdt:
 	movb $0x7, 0xb8001
 
 	jmp .
-
-.fill 1024, 4, 0
-
-.align 4
-_stack_start:
-	.long .
-	.word 0x10

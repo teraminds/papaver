@@ -1,9 +1,27 @@
 /* kernel/sched.c */
 
 #include <linux/sched.h>
+#include <asm/io.h>
+#include <asm/system.h>
+
+#define LATCH (1193182/HZ)
+
+union task_union {
+	struct task_struct task;
+	char stack[PAGE_SIZE];
+};
+
+static union task_union init_task = {INIT_TASK};
 
 struct task_struct *current = NULL;
-struct task_struct *task[NR_TASKS] = {NULL};
+struct task_struct *task[NR_TASKS] = {&(init_task.task)};
+
+long user_stack[PAGE_SIZE>>2];  // 4KB
+
+struct {
+	long *a;
+	short b;
+} stack_start = {&user_stack[PAGE_SIZE], 0x10};
 
 void schedule() {
 	int i, next, c;
@@ -27,6 +45,30 @@ void schedule() {
 	switch_to(next);
 }
 
+int sys_pause() {
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	return 0;
+}
+
+void do_timer(long cpl) {
+	if (cpl)
+		current->utime++;
+	else
+		current->stime++;
+
+	if ((--current->counter) > 0)  // time not out
+		return;
+	current->counter = 0;
+	if (0 == cpl)  // kernel mode scheduling does not rely on counter
+		return;
+	schedule();
+}
+
 void sched_init() {
+	outb_p(0x36, 0x43);  // channel 0, LSB/MSB, mode 3, binary
+	outb_p(LATCH & 0xff, 0x40);  // LSB
+	outb(LATCH >> 8, 0x40);  // MSB
+	set_intr_gate(0x20, &timer_interrupt);
 	set_system_gate(0x80, &system_call);
 }

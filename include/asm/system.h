@@ -6,8 +6,8 @@
 #define move_to_user_mode() \
 __asm__("movl %%esp, %%eax;" \
 	"pushl $0x17;" \
-	"pushl %%eax"; \
-	"pushfl" \
+	"pushl %%eax;" \
+	"pushfl;" \
 	"pushl $0x0f;" \
 	"pushl 1f;" \
 	"iret;" \
@@ -16,20 +16,7 @@ __asm__("movl %%esp, %%eax;" \
 	"movw %%ax, %%es;" \
 	"movw %%ax, %%fs;" \
 	"movw %%ax, %%gs;" \
-	:::"ax")
-
-#define _set_gate(gate_addr, type, dpl, addr) \
-__asm__("movl $addr, %%edx;" \
-	"movl $0x00080000, %%eax;" \
-	"movw %%dx, %%ax;" \
-	"movw $0, %%dx;" \
-	"movb $dpl, %%dh;" \
-	"shlb $5, %%dh;" \
-	"xorb $0x80, %%dh;" \
-	"xorb $type, %%dh;" \
-	"movl %%eax, gateaddr;" \
-	"movl %%edx, gateaddr+4;" \
-	::"%eax", "%edx")
+	:::"eax")
 
 #define _set_gate(gate_addr, type, dpl, addr) \
 __asm__( "movw %%dx, %%ax;" \

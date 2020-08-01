@@ -3,6 +3,9 @@
 #ifndef _UNISTD_H
 #define _UNISTD_H
 
+#define __NR_fork       2
+#define __NR_pause     29
+
 #define _syscall0(type, name) \
 type name(void) \
 { \
@@ -16,8 +19,5 @@ type name(void) \
 	errno = -__res; \
 	return -1; \
 }
-
-
-#define __NR_fork       2
 
 #endif

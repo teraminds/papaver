@@ -1,5 +1,7 @@
 /* kernel/system_call.s*/
 
+.equ CS 0x20
+
 .equ state 0
 .equ counter 4
 
@@ -51,6 +53,28 @@ ret_from_sys_call:
 	pop %ds
 	iret
 
+// int 32(int 0x20)
+.align 4
+timer_interrupt:
+	push %ds
+	push %es
+	push %fs
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	movl $0x10, %eax
+	movw %ax, %ds
+	movw %ax, %es
+	movl $0x17, %eax
+	movw %ax, %fs
+	incl _jiffies
+	movl CS(%esp), %eax
+	andl $3, %eax  // cpl
+	pushl %eax
+	call _do_timer
+	addl $4, %esp  // get rid of param(%eax) of do_timer
+	jmp ret_from_sys_call
 
 .align 4
 _sys_fork:
