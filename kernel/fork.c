@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <linux/sched.h>
+#include <asm/system.h>
 
 long last_pid = 0;  // last used pid
 
@@ -72,6 +73,10 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 		free_page((long)p);
 		return -EAGAIN;
 	}
+
+	set_tss_desc(gdt+(FIRST_TSS_ENTRY+nr*2), &(p->tss));
+	set_ldt_desc(gdt+(FIRST_LDT_ENTRY+nr*2), &(p->ldt));
+	p->state = TASK_RUNNING;
 
 	return last_pid;
 }

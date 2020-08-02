@@ -4,7 +4,9 @@
 #define _SYS_H
 
 extern int sys_fork();  //  2
-extern int sys_pause()  // 29
+extern int sys_pause();  // 29
+
+typedef int (*fn_ptr)();
 
 fn_ptr sys_call_table[] = {
 	NULL,

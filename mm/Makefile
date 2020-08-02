@@ -3,7 +3,7 @@
 AS = as
 LD = ld
 CC = gcc
-CFLAGS = -nostdinc -I../include
+CFLAGS = -nostdinc -I../include -fomit-frame-pointer
 
 CPP = gcc -E -nostdinc -I../include
 

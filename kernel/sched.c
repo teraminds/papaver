@@ -1,6 +1,7 @@
 /* kernel/sched.c */
 
 #include <linux/sched.h>
+#include <linux/sys.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -13,7 +14,7 @@ union task_union {
 
 static union task_union init_task = {INIT_TASK};
 
-struct task_struct *current = NULL;
+struct task_struct *current = &(init_task.task);
 struct task_struct *task[NR_TASKS] = {&(init_task.task)};
 
 long user_stack[PAGE_SIZE>>2];  // 4KB
@@ -22,6 +23,8 @@ struct {
 	long *a;
 	short b;
 } stack_start = {&user_stack[PAGE_SIZE], 0x10};
+
+volatile long jiffies = 0;
 
 void schedule() {
 	int i, next, c;
@@ -66,6 +69,12 @@ void do_timer(long cpl) {
 }
 
 void sched_init() {
+	__asm__("pushfl; andl $0xffffbffff, (%%esp); popfl"::);  // reset NT flag
+	set_tss_desc(gdt+FIRST_TSS_ENTRY, &(init_task.task.tss));
+	set_ldt_desc(gdt+FIRST_LDT_ENTRY, &(init_task.task.ldt));
+	ltr(0);  // load task 0 tr
+	lldt(0);  // load task 0 ldt
+
 	outb_p(0x36, 0x43);  // channel 0, LSB/MSB, mode 3, binary
 	outb_p(LATCH & 0xff, 0x40);  // LSB
 	outb(LATCH >> 8, 0x40);  // MSB

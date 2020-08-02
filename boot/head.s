@@ -1,7 +1,8 @@
 /**/
 
 .globl _start
-_pg_dir:
+.globl idt, gdt, pg_dir
+pg_dir:
 _start:
 start:
 	movw $0x10, %ax
@@ -9,7 +10,7 @@ start:
 	movw %ax, %es
 	movw %ax, %fs
 	movw %ax, %gs
-	lss _stack_start, %esp
+	lss stack_start, %esp
 
 	call setup_idt
 	call setup_gdt
@@ -19,7 +20,7 @@ start:
 	movw %ax, %es
 	movw %ax, %fs
 	movw %ax, %gs
-	lss _stack_start, %esp
+	lss stack_start, %esp
 
 /* check if A20 is enabled */
 	xorl %eax, %eax
@@ -59,10 +60,10 @@ setup_paging:
 	xorl %edi, %edi  /* pg_dir is at 0x00 */
 	cld
 	rep stosl
-	movl $pg0+7, _pg_dir  /* pg dir entry n, r/w=1, u/s=1, p=1 */
-	movl $pg1+7, _pg_dir+4
-	movl $pg2+7, _pg_dir+8
-	movl $pg3+7, _pg_dir+12
+	movl $pg0+7, pg_dir  /* pg dir entry n, r/w=1, u/s=1, p=1 */
+	movl $pg1+7, pg_dir+4
+	movl $pg2+7, pg_dir+8
+	movl $pg3+7, pg_dir+12
 	movl $7, %eax
 	movl $pg0, %edi
 	movl $1024*4, %ecx
@@ -83,7 +84,7 @@ setup_idt:
 	movl $0x00080000, %eax
 	movw %dx, %ax
 	movw $0x8e00, %dx
-	leal _idt, %edi
+	leal idt, %edi
 	movl $256, %ecx
 rp_sidt:
 	movl %eax, (%edi)
@@ -132,20 +133,20 @@ _printk:
 
 idt_descr:
 	.word 256*8-1  /* 256 items */
-	.long _idt
+	.long idt
 
 .align 4
 	.word 0
 gdt_descr:
 	.word 256*8-1  /* 256 items */
-	.long _gdt
+	.long gdt
 
 .align 8
-_idt:
+idt:
 	.fill 256, 8, 0
 
 .align 8
-_gdt:
+gdt:
 	.word 0x0, 0x0, 0x0, 0x0  /* null */
 	.word 0x0fff, 0x0000, 0x9a00, 0x00c0  /* code */
 	.word 0x0fff, 0x0000, 0x9200, 0x00c0  /* data */

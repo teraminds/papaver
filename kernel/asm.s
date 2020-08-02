@@ -25,6 +25,8 @@
 17~31  Reserved
 */
 
+.globl reserved
+
 no_error_code:
 	xchgl %eax, (%esp)  /* %eax is pushed to %esp, interrupt function is stored in %eax  */
 	pushl %ebx
@@ -58,48 +60,48 @@ no_error_code:
 	iret
 
 /* int 0, divide error */
-_divide_error:
-	pushl $_do_divide_error
+divide_error:
+	pushl $do_divide_error
 	jmp no_error_code
 
 /* int 1, debug */
-_debug:
-	pushl $_do_int3
+debug:
+	pushl $do_int3
 	jmp no_error_code
 
 /* int 2, nmi */
-_nmi:
-	pushl $_do_nmi
+nmi:
+	pushl $do_nmi
 	jmp no_error_code
 
 /* int 3, breakpoint */
-_int3:
-	pushl $_do_int3
+int3:
+	pushl $do_int3
 	jmp no_error_code
 
 /* int 4, overflow */
-_overflow:
-	pushl $_do_overflow
+overflow:
+	pushl $do_overflow
 	jmp no_error_code
 
 /* int 5, bounds check */
-_bounds:
-	pushl $_do_bounds
+bounds:
+	pushl $do_bounds
 	jmp no_error_code
 
 /* int 6, invalid opcode */
-_invalid_op:
-	pushl $_do_invalid_op
+invalid_op:
+	pushl $do_invalid_op
 	jmp no_error_code
 
 /* int 9, coprocessor segment overrun */
-_coprocessor_segment_overrun:
-	pushl $_do_coprocessor_segment_overrun
+coprocessor_segment_overrun:
+	pushl $do_coprocessor_segment_overrun
 	jmp no_error_code
 
 /* int 15(17~31), reserved */
-_reserved:
-	pushl $_do_reserved
+reserved:
+	pushl $do_reserved
 	jmp no_error_code
 
 
@@ -121,7 +123,7 @@ error_code:
 	movw %ax, %ds
 	movw %ax, %es
 	movw %ax, %fs
-	call *ebx
+	call *%ebx
 	addl $8, %esp
 	pop %fs
 	pop %es
@@ -136,23 +138,23 @@ error_code:
 	iret
 
 /* int 10, invalid TSS */
-_invalid_TSS:
-	pushl $_do_invalid_TSS
+invalid_TSS:
+	pushl $do_invalid_TSS
 	jmp error_code
 
 /* int 11, segment not present */
-_segment_not_present:
-	pushl $_do_segment_not_present
+segment_not_present:
+	pushl $do_segment_not_present
 	jmp error_code
 
 /* int 12, stack segment */
-_stack_segment:
-	pushl $_do_stack_segment
+stack_segment:
+	pushl $do_stack_segment
 	jmp error_code
 
 /* int 13, general protection */
-_general_protection:
-	pushl $_do_general_protection
+general_protection:
+	pushl $do_general_protection
 	jmp error_code
 
 /* int 7 */

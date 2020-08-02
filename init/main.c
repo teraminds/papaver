@@ -36,11 +36,13 @@ int main() {
 	sched_init();
 
 	move_to_user_mode();
+
 	if (!fork()) {
 		// child process
 		p = 0xb8006;
 		*p = 'a';
 		*(p+1) = 0x07;
+		while(1);
 		while (1) {
 			i = 100000;
 			while(i--);
@@ -48,12 +50,13 @@ int main() {
 		}
 		//init();
 	}
+
 	// parent process
 	p = 0xb8008;
 	*p = 'A';
 	*(p+1) = 0x07;
 	while (1) {
-		i = 100000;
+		i = 1000000;
 		while(i--);
 		*p = (*p-'A'+1) % 26 + 'A';
 	}

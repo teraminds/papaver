@@ -20,4 +20,6 @@ type name(void) \
 	return -1; \
 }
 
+extern int errno;
+
 #endif

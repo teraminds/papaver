@@ -3,11 +3,11 @@
 AS = as
 LD = ld
 CC = gcc
-CFLAGS = -nostdinc -I../include
+CFLAGS = -nostdinc -I../include -fomit-frame-pointer
 
 CPP = gcc -E -nostdinc -I../include
 
-objects = asm.o fork.o sched.o system_call.o traps.o 
+objects = asm.o fork.o sched.o system_call.o traps.o panic.o 
 
 # -r generates relocatable output
 kernel.o: $(objects)
@@ -32,6 +32,11 @@ dep:
 	cp tmp_make Makefile
 
 ### dependency
-fork.s fork.o: fork.c ../include/linux/sched.h
-sched.s sched.o: sched.c ../include/linux/sched.h ../include/asm/io.h
-traps.s traps.o: traps.c
+fork.s fork.o: fork.c ../include/errno.h ../include/linux/sched.h \
+ ../include/linux/head.h ../include/linux/mm.h ../include/asm/system.h
+panic.s panic.o: panic.c
+sched.s sched.o: sched.c ../include/linux/sched.h ../include/linux/head.h \
+ ../include/linux/mm.h ../include/linux/sys.h ../include/asm/io.h \
+ ../include/asm/system.h
+traps.s traps.o: traps.c ../include/linux/sched.h ../include/linux/head.h \
+ ../include/linux/mm.h ../include/asm/system.h

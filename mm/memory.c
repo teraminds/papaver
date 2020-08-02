@@ -3,7 +3,7 @@
 #define LOW_MEM 0x100000  // 1M
 #define PAGING_MEMORY (15*1024*1024)  // 15M
 #define PAGING_PAGES (PAGING_MEMORY>>12)  // how many pages
-#define MAP_NR(addr) (((addr)-LOW_MEMORY)>>12)  // page no. of addr
+#define MAP_NR(addr) (((addr)-LOW_MEM)>>12)  // page no. of addr
 #define USED 100
 
 static long HIGH_MEMORY = 0;
@@ -26,11 +26,11 @@ unsigned long get_free_page() {
 		"movl $1024, %%ecx;"
 		"leal 4092(%%edx), %%edi;"
 		"rep stosl;"  /* clear the page */
-		"mvol %%edx, %%eax;"  /* return physical address of the page */
+		"movl %%edx, %%eax;"  /* return physical address of the page */
 		"1:"
 		:"=a"(__res)
-		:"0"(0), "i"(LOW_MEM), "c"(PAGING_PAGES), 'D'(mem_map+PAGING_PAGES-1)
-		:"edi", "ecx", "edx");
+		:"0"(0), "i"(LOW_MEM), "c"(PAGING_PAGES), "D"(mem_map+PAGING_PAGES-1)
+		:"edx");
 
 	return __res;
 }
@@ -72,7 +72,7 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 			panic("copy_page_tables: already exits");
 		if (!(1 & *from_dir))
 			continue;
-		from_page_table = (unsigned long*)(*page_dir & 0xfffff000);
+		from_page_table = (unsigned long*)(*from_dir & 0xfffff000);
 		if (!(to_page_table = (unsigned long*)get_free_page()))
 			return -1;  // out of memory
 		*to_dir = ((unsigned long)to_page_table) | 0x7;
@@ -90,6 +90,9 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 		}
 	}
 	return 0;
+}
+
+int free_page_tables(unsigned long from, unsigned long size) {
 }
 
 /*
