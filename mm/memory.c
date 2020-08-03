@@ -82,7 +82,7 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 			this_page = *from_page_table;
 			if (!(1 & this_page))
 				continue;
-			//this_page &= ~2;  // read only
+			this_page &= ~2;  // read only
 			*to_page_table = this_page;
 			if (this_page > LOW_MEM) {
 				*from_page_table = this_page;

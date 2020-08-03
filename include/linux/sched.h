@@ -72,7 +72,7 @@ struct task_struct {
 /* utime */    0, \
 /* stime */    0, \
 /* ldt */      {{0, 0}, \
-				{0x9f, 0xc0fa00}, \
+				{0xff, 0xc0fa00}, \
 				{0xff, 0xc0f200}}, \
 /* tss */      {0, PAGE_SIZE+(long)&init_task, 0x10, 0, 0, 0, 0, \
 				(long)&pg_dir, 0, 0, \

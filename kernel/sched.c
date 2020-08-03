@@ -32,7 +32,7 @@ void schedule() {
 	while (1) {
 		c = -1;
 		next = 0;
-		for (i=NR_TASKS-1; i>=0; i--) {
+		for (i=NR_TASKS-1; i>0; i--) {
 			if (task[i] && task[i]->state==TASK_RUNNING && task[i]->counter > c) {
 				c = task[i]->counter;
 				next = i;
@@ -40,7 +40,7 @@ void schedule() {
 		}
 		if (c)
 			break;
-		for (i=NR_TASKS-1; i>=0; i--) {
+		for (i=NR_TASKS-1; i>0; i--) {
 			if (task[i])
 				task[i]->counter = (task[i]->counter >> 1) + task[i]->priority;
 		}
