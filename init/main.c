@@ -42,10 +42,11 @@ int main() {
 		p = 0xb8006;
 		*p = 'a';
 		*(p+1) = 0x07;
-		while(1);
+		//while(1);
 		while (1) {
-			i = 100000;
+			i = 1000000;
 			while(i--);
+		p = 0xb8006;
 			*p = (*p-'a'+1) % 26 + 'a';
 		}
 		//init();
@@ -58,6 +59,7 @@ int main() {
 	while (1) {
 		i = 1000000;
 		while(i--);
+		p = 0xb8008;
 		*p = (*p-'A'+1) % 26 + 'A';
 	}
 	while (1);

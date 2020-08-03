@@ -43,7 +43,7 @@ system_call:
 	je reschedule
 ret_from_sys_call:
 	movl current, %eax
-	movl task, %eax
+	cmpl task, %eax
 	je 3f
 3:
 	popl %eax  /* return value */

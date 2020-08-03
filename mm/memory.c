@@ -26,6 +26,7 @@ unsigned long get_free_page() {
 		"movl $1024, %%ecx;"
 		"leal 4092(%%edx), %%edi;"
 		"rep stosl;"  /* clear the page */
+		"cld;"
 		"movl %%edx, %%eax;"  /* return physical address of the page */
 		"1:"
 		:"=a"(__res)
@@ -76,12 +77,12 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 		if (!(to_page_table = (unsigned long*)get_free_page()))
 			return -1;  // out of memory
 		*to_dir = ((unsigned long)to_page_table) | 0x7;
-		nr = (0 == from) ? 0xA0 : 1024;
+		nr = (0 == from) ? 0x100 : 1024;
 		for (; nr-->0; from_page_table++, to_page_table++) {
 			this_page = *from_page_table;
 			if (!(1 & this_page))
 				continue;
-			this_page &= ~2;  // read only
+			//this_page &= ~2;  // read only
 			*to_page_table = this_page;
 			if (this_page > LOW_MEM) {
 				*from_page_table = this_page;

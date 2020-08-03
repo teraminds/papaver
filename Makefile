@@ -43,5 +43,6 @@ dep:
 	cd init; make dep
 	cd kernel; make dep
 	cd mm; make dep
+	cd lib; make dep
 
 ### dependency

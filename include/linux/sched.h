@@ -77,7 +77,7 @@ struct task_struct {
 /* tss */      {0, PAGE_SIZE+(long)&init_task, 0x10, 0, 0, 0, 0, \
 				(long)&pg_dir, 0, 0, \
 				0, 0, 0, 0, 0, 0, 0, 0, \
-				0x17, 0x10, 0x17, 0x17, 0x17, 0x17, \
+				0x17, 0x0f, 0x17, 0x17, 0x17, 0x17, \
 				_LDT(0), 0x8000000} \
 }
 
@@ -96,10 +96,11 @@ extern struct task_struct *current;
 #define lldt(n) __asm__("lldt %%ax"::"a"(_LDT(0)))
 
 #define switch_to(n) { \
-	struct {long addr; short sel;} __tmp; \
+	struct {long addr; long sel;} __tmp; \
 	__asm__( "cmpl %%ecx, current;" \
 		"je 1f;" \
 		"movw %%dx, %1;" \
+		"xchgl current, %%ecx;" \
 		"ljmp *%0;" \
 		"1:" \
 		::"m"(__tmp.addr), "m"(__tmp.sel), "d"(_TSS(n)), "c"((long)task[n])); \
