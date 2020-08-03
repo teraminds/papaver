@@ -18,6 +18,9 @@ __asm__("movl %%esp, %%eax;" \
 	"movw %%ax, %%gs;" \
 	:::"eax")
 
+#define cli() __asm__("cli"::)
+#define sti() __asm__("sti"::)
+
 #define _set_gate(gate_addr, type, dpl, addr) \
 __asm__( "movw %%dx, %%ax;" \
 	"movw %0, %%dx;" \

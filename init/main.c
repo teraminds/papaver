@@ -35,8 +35,8 @@ int main() {
 	trap_init();
 	sched_init();
 
+	sti();
 	move_to_user_mode();
-
 	if (!fork()) {
 		// child process
 		p = 0xb8006;

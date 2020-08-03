@@ -132,7 +132,7 @@ end_move:
 	outb %al, $0x21  /* ICW3 to master, IRQ2 */
 	nop
 	nop
-	movb $0x10, %al
+	movb $0x02, %al
 	outb %al, $0xA1  /* ICW3 to slave, IRQ2 */
 	nop
 	nop

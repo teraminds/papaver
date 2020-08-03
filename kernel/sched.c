@@ -54,7 +54,13 @@ int sys_pause() {
 	return 0;
 }
 
+char t = 'a';
 void do_timer(long cpl) {
+/*	char *p = 0xb800a;
+	t = (t-'a'+1)%26 + 'a';
+	*p = t;
+	*(p+1) = 0x07;
+*/
 	if (cpl)
 		current->utime++;
 	else
@@ -79,5 +85,6 @@ void sched_init() {
 	outb_p(LATCH & 0xff, 0x40);  // LSB
 	outb(LATCH >> 8, 0x40);  // MSB
 	set_intr_gate(0x20, &timer_interrupt);
+	outb(inb_p(0x21)&~0x01, 0x21);  // unmask timer interrupt
 	set_system_gate(0x80, &system_call);
 }
