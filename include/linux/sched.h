@@ -135,7 +135,7 @@ extern struct task_struct *current;
 		"shll $16, %%edx;" \
 		"movw %1, %%dx" \
 		:"=d"(__base) \
-		:"m"(*((addr)+2)), "m"(*((addr)+4)), "m"(*((addr)+7))); \
+		:"m"(*((addr)+2)), "m"(*((addr)+4)), "m"(*((addr)+7)), "0"(0)); \
 	__base; \
 })
 
