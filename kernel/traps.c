@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <asm/system.h>
 
+extern void page_fault();
 extern void reserved();
 
 void do_divide_error(long esp, long error_code) {
@@ -52,4 +53,5 @@ void trap_init() {
 	for (i=0; i<48; i++) {
 		set_trap_gate(i, &reserved);
 	}
+	set_trap_gate(14, &page_fault);
 }

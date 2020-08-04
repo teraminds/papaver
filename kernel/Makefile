@@ -3,7 +3,7 @@
 AS = as
 LD = ld
 CC = gcc
-CFLAGS = -nostdinc -I../include -fomit-frame-pointer
+CFLAGS = -nostdinc -I../include -fomit-frame-pointer -fno-stack-protector
 
 CPP = gcc -E -nostdinc -I../include
 
@@ -23,6 +23,7 @@ kernel.o: $(objects)
 	$(CC) $(CFLAGS) -c -o $*.o $<
 
 clean:
+	for i in *.c; do rm `basename $$i .c`.s; done
 	rm $(objects) kernel.o
 
 dep:

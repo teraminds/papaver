@@ -3,6 +3,6 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
-extern volatile panic(const char * str);
+extern volatile void panic(const char * str);
 
 #endif

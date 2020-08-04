@@ -1,5 +1,7 @@
 /* mm/memory.c */
 
+#include <linux/kernel.h>
+
 #define LOW_MEM 0x100000  // 1M
 #define PAGING_MEMORY (15*1024*1024)  // 15M
 #define PAGING_PAGES (PAGING_MEMORY>>12)  // how many pages
@@ -9,6 +11,13 @@
 static long HIGH_MEMORY = 0;
 
 static unsigned char mem_map[PAGING_PAGES] = {0};
+
+// copy a page
+#define copy_page(from, to) \
+	__asm__("cld; rep movsl"::"c"(1024), "S"(from), "D"(to))
+
+static inline volatile void oom() {
+}
 
 /*
  * Get a free page.
@@ -45,10 +54,11 @@ void free_page(unsigned long addr) {
 	if (addr >= HIGH_MEMORY)
 		panic("trying to free nonexistent page");
 	addr = MAP_NR(addr);
-	if (mem_map[addr]--)
-		return;
-	mem_map[addr] = 0;
-	panic("trying to free free page");
+	if (mem_map[addr] <= 0) {
+		mem_map[addr] = 0;
+		panic("trying to free free page");
+	}
+	mem_map[addr]--;
 }
 
 /*
@@ -93,7 +103,75 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 	return 0;
 }
 
+/*
+ * Free a continous block of page tables.
+ * from is linear address and size is byte unit.
+ */
 int free_page_tables(unsigned long from, unsigned long size) {
+	unsigned long *pg_table;
+	unsigned long *dir;
+	unsigned long nr;
+
+	if (from & 0x3fffff)
+		panic("free_page_tables called with wrong alignment");
+	if (!from)
+		panic("Trying to free up swapper memory space");
+	size = (size + 0x3fffff) >> 22;
+	dir = (unsigned long *)((from >> 20) & 0xffc);  // pg_dir = 0
+
+	for (; size-->0; dir++) {
+		if (!(1 & *dir))
+			continue;
+		pg_table = (unsigned long *)(0xfffff000 & *dir);
+		for (nr=0; nr<1024; nr++) {
+			if (1 & *pg_table)
+				free_page(0xfffff000 & *pg_table);
+			*pg_table = 0;
+			pg_table++;
+		}
+		free_page(0xfffff000 & *dir);
+	}
+	return 0;
+}
+
+/*
+ * Un write protect page.
+ * table_entry is the physical address pointing to a page table entry.
+ */
+void un_wp_page(unsigned long * table_entry) {
+	unsigned long old_page, new_page;
+
+	old_page = 0xfffff000 & *table_entry;
+	if (old_page > LOW_MEM && mem_map[MAP_NR(old_page)] == 1) {
+		*table_entry |= 2;  // enable write
+		return;
+	}
+	if (!(new_page=get_free_page()))
+		oom();
+	if (old_page >= LOW_MEM)
+		mem_map[MAP_NR(old_page)]--;
+	*table_entry = new_page | 7;
+	copy_page(old_page, new_page);
+}
+
+/*
+ * Page fault - write protection when user try to write to a shared page.
+ * address is the linear address causing this page fault.
+ */
+void do_wp_page(unsigned long error_code, unsigned long address) {
+	unsigned long *dir;
+	unsigned long *pg_table;
+
+	dir = (unsigned long *)((address>>20)&0xffc);
+	pg_table = (unsigned long *)(*dir & 0xfffff000);
+	un_wp_page(pg_table + ((address>>12) & 0x3ff));
+}
+
+/*
+ * Page fault - Page does not present.
+ * address is the linear address causing this page fault.
+ */
+void do_no_page(unsigned long error_code, unsigned long address) {
 }
 
 /*

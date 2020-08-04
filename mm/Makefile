@@ -3,11 +3,11 @@
 AS = as
 LD = ld
 CC = gcc
-CFLAGS = -nostdinc -I../include -fomit-frame-pointer
+CFLAGS = -nostdinc -I../include -fomit-frame-pointer -fno-stack-protector
 
 CPP = gcc -E -nostdinc -I../include
 
-objects = memory.o
+objects = memory.o page.o
 
 # -r generates relocatable output
 mm.o: $(objects)
@@ -23,6 +23,7 @@ mm.o: $(objects)
 	$(CC) $(CFLAGS) -c -o $*.o $<
 
 clean:
+	for i in *.c; do rm `basename $$i .c`.s; done
 	rm $(objects) mm.o
 
 dep:
@@ -32,4 +33,4 @@ dep:
 	cp tmp_make Makefile
 
 ### dependency
-memory.s memory.o: memory.c
+memory.s memory.o: memory.c ../include/linux/kernel.h
