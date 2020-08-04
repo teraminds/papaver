@@ -28,7 +28,7 @@ unsigned long get_free_page() {
 
 	__asm__("std; repne scasb;"
 		"jne 1f;"  /* no free page found */
-		"movl $1, 1(%%edi);"  /* mark the page as used */
+		"movb $1, 1(%%edi);"  /* mark the page as used */
 		"shll $12, %%ecx;"
 		"addl %2, %%ecx;"
 		"movl %%ecx, %%edx;"
@@ -61,6 +61,8 @@ void free_page(unsigned long addr) {
 	mem_map[addr]--;
 }
 
+#define shvm
+
 /*
  * Copy page tables, makes different linear addresses points to same physical address
  * from and to are linear addresses. size is byte in unit.
@@ -78,6 +80,9 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 	from_dir = (unsigned long*)((from>>20) & 0xffc);  /* page_dir = 0 */
 	to_dir = (unsigned long*)((to>>20) & 0xffc);
 	size = (size+0x3fffff) >> 22;
+#ifdef shvm
+int cnt = 0;
+#endif
 	for (; size-->0; from_dir++, to_dir++) {
 		if (1 & *to_dir)
 			panic("copy_page_tables: already exits");
@@ -93,6 +98,12 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 			if (!(1 & this_page))
 				continue;
 			this_page &= ~2;  // read only
+// hack, share video mem, 0xb8000
+#ifdef shvm
+cnt++;
+if (cnt==0xb9) this_page |= 2;
+#endif
+
 			*to_page_table = this_page;
 			if (this_page > LOW_MEM) {
 				*from_page_table = this_page;
@@ -162,7 +173,7 @@ void do_wp_page(unsigned long error_code, unsigned long address) {
 	unsigned long *dir;
 	unsigned long *pg_table;
 
-	dir = (unsigned long *)((address>>20)&0xffc);
+	dir = (unsigned long *)((address>>20) & 0xffc);
 	pg_table = (unsigned long *)(*dir & 0xfffff000);
 	un_wp_page(pg_table + ((address>>12) & 0x3ff));
 }

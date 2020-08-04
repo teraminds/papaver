@@ -13,7 +13,7 @@ static long main_memory_start = 0;
 
 int main() {
 #if 1
-	char *p = 0xb8004;
+	char *p = 0xb8000;
 	*p = 'M';
 	*(p+1) = 0x07;
 #endif
@@ -38,28 +38,40 @@ int main() {
 	sti();
 	move_to_user_mode();
 	if (!fork()) {
-		// child process
-		p = 0xb8006;
+		// child process 1
+		p = 0xb8002;
 		*p = 'a';
 		*(p+1) = 0x07;
+		if (!fork()) {
+			// child process 2
+			p = 0xb8004;
+			*p = '0';
+			*(p+1) = 0x07;
+			while (1) {
+				i = 500000;
+				while(i--);
+				p = 0xb8004;
+				*p = (*p-'0'+1) % 10 + '0';
+			}
+		}
 		//while(1);
 		while (1) {
 			i = 1000000;
 			while(i--);
-		p = 0xb8006;
+		p = 0xb8002;
 			*p = (*p-'a'+1) % 26 + 'a';
 		}
 		//init();
 	}
 
 	// parent process
-	p = 0xb8008;
+	p = 0xb80a0;
 	*p = 'A';
 	*(p+1) = 0x07;
 	while (1) {
 		i = 1000000;
 		while(i--);
-		p = 0xb8008;
+		p = 0xb80a0;
 		*p = (*p-'A'+1) % 26 + 'A';
 	}
 	while (1);

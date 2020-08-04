@@ -54,13 +54,7 @@ int sys_pause() {
 	return 0;
 }
 
-char t = 'a';
 void do_timer(long cpl) {
-/*	char *p = 0xb800a;
-	t = (t-'a'+1)%26 + 'a';
-	*p = t;
-	*(p+1) = 0x07;
-*/
 	if (cpl)
 		current->utime++;
 	else
