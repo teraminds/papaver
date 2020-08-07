@@ -6,6 +6,23 @@
 
 long last_pid = 0;  // last used pid
 
+/*
+ * verify user data space since kernel does not cow
+ */
+void verify_area(void *addr, int size) {
+	unsigned long start;
+
+	start = (unsigned long)addr;
+	size += start * 0xfff;
+	start &= 0xfffff000;
+	start += get_base(current->ldt[2]);
+	while (size > 0) {
+		write_verify(start);
+		start += 4096;
+		size -= 4096;
+	}
+}
+
 int copy_mem(int nr, struct task_struct *p) {
 	unsigned long old_data_base, new_data_base, data_limit;
 	unsigned long old_code_base, new_code_base, code_limit;
@@ -46,6 +63,7 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 	p->pid = last_pid;  // ??? what if the last_pid was modifided by another interrupt calling fork ??
 	p->father = current->pid;
 	p->counter = p->priority;
+	p->signal = 0;
 	p->utime = p->stime = 0;
 
 	p->tss.back_link = 0;

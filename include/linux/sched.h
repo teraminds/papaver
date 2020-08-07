@@ -8,6 +8,7 @@
 
 #include <linux/head.h>
 #include <linux/mm.h>
+#include <signal.h>
 
 #define TASK_RUNNING 0  // running or ready for running
 #define TASK_INTERRUPTIBLE 1
@@ -52,8 +53,11 @@ struct tss_struct {
 
 struct task_struct {
 	long state;
-	long counter;
+	long counter;  // tick count
 	long priority;
+	long signal;  // signal bitmap
+	struct sigaction sigaction[32]; // signal handling property
+	long blocked;  // signal mask
 	long pid;  // process id
 	long father; // id of father process
 	long utime;  // user mode run time
@@ -67,6 +71,9 @@ struct task_struct {
 /* state */    0, \
 /* counter */  15, \
 /* priority */ 15, \
+/* signal */   0, \
+/* sigaction */ {{}}, \
+/* blocked */  0, \
 /* pid */      0, \
 /* father */   -1, \
 /* utime */    0, \

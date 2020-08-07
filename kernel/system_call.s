@@ -1,9 +1,23 @@
 /* kernel/system_call.s*/
 
+/* stack offset when calling ret_from_system_call */
+.equ EAX, 0x00
+.equ EBX, 0x04
+.equ ECX, 0x08
+.equ EDX, 0x0c
+.equ FS, 0x10
+.equ ES, 0x14
+.equ DS, 0x18
+.equ EIP, 0x1c  /* interrupt ret addr*/
 .equ CS, 0x20
+.equ EFLAGS, 0x24
+.equ ESP, 0x28
+.equ SS, 0x2c
 
 .equ state, 0
 .equ counter, 4
+.equ signal, 12
+.equ blocked, (33*16)  /* 16+16*32 */
 
 .equ nr_system_calls, 72
 
@@ -41,10 +55,26 @@ system_call:
 	jne reschedule
 	cmpl $0, counter(%eax)  /* time out */
 	je reschedule
-ret_from_sys_call:
+ret_from_sys_call:  /* handle signal */
 	movl current, %eax
 	cmpl task, %eax
+	je 3f  /* no signal for task0 */
+	cmpw $0x0f, CS(%esp)
+	jne 3f  /* not user */
+	cmpw $0x17, SS(%esp)
+	jne 3f  /* not user*/
+	movl signal(%eax), %ebx
+	movl blocked(%eax), %ecx
+	notl %ecx
+	andl %ebx, %ecx
+	bsfl %ecx, %ecx
 	je 3f
+	btrl %ecx, %ebx
+	movl %ebx, signal(%eax)
+	incl %ecx  /* signal starts from 1*/
+	pushl %ecx
+	call do_signal
+	popl %ecx  /* pop the signal */
 3:
 	popl %eax  /* return value */
 	popl %ebx

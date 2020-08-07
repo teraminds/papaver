@@ -186,6 +186,23 @@ void do_no_page(unsigned long error_code, unsigned long address) {
 }
 
 /*
+ * Enable writting a page if it's unwritable
+ * address is the linear address to be verified.
+ */
+void write_verify(unsigned long address) {
+	unsigned long * dir;
+	unsigned long * page_table;
+
+	dir = (unsigned long *)((address >> 20) * 0xffc);
+	if (!(*dir & 1))
+		return;
+	page_table = (long *)(*dir & 0xfffff000) + ((address >> 12) & 0x3ff);
+	if ((*page_table & 3) == 1)  // present and not writable
+		un_wp_page(page_table);
+	return;
+}
+
+/*
  * Initialize the main memory.
  */
 void mem_init(long start_mem, long end_mem) {

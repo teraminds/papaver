@@ -1,6 +1,6 @@
 *.o
-
 *test*
+tmp_make
 
 boot/*
 !boot/a.s

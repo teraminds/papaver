@@ -7,7 +7,8 @@ CFLAGS = -nostdinc -I../include -fomit-frame-pointer -fno-stack-protector
 
 CPP = gcc -E -nostdinc -I../include
 
-objects = asm.o fork.o sched.o system_call.o traps.o panic.o 
+objects = asm.o fork.o sched.o system_call.o traps.o panic.o signal.o \
+			exit.o
 
 # -r generates relocatable output
 kernel.o: $(objects)
@@ -33,11 +34,15 @@ dep:
 	cp tmp_make Makefile
 
 ### dependency
+exit.s exit.o: exit.c
 fork.s fork.o: fork.c ../include/errno.h ../include/linux/sched.h \
- ../include/linux/head.h ../include/linux/mm.h ../include/asm/system.h
+ ../include/linux/head.h ../include/linux/mm.h ../include/signal.h \
+ ../include/asm/system.h
 panic.s panic.o: panic.c
 sched.s sched.o: sched.c ../include/linux/sched.h ../include/linux/head.h \
- ../include/linux/mm.h ../include/linux/sys.h ../include/asm/io.h \
- ../include/asm/system.h
+ ../include/linux/mm.h ../include/signal.h ../include/linux/sys.h \
+ ../include/asm/io.h ../include/asm/system.h
+signal.s signal.o: signal.c ../include/signal.h ../include/linux/sched.h \
+ ../include/linux/head.h ../include/linux/mm.h ../include/asm/segment.h
 traps.s traps.o: traps.c ../include/linux/sched.h ../include/linux/head.h \
- ../include/linux/mm.h ../include/asm/system.h
+ ../include/linux/mm.h ../include/signal.h ../include/asm/system.h
