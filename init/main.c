@@ -4,12 +4,18 @@
 
 static inline _syscall0(int, fork)
 static inline _syscall0(int, pause)
+static inline _syscall1(int, setup, void *, BIOS)
 
 #define EXT_MEM_K (*(unsigned short*)0x90002)
+#define DRIVE_INFO (*(struct drive_info *)0x90080)
 
 static long memory_end = 0;
 static long buffer_memory_end = 0;
 static long main_memory_start = 0;
+
+struct drive_info {char dummy[32];} drive_info;  // hd parameter
+
+void init();
 
 int main() {
 #if 1
@@ -34,10 +40,12 @@ int main() {
 	mem_init(main_memory_start, memory_end);
 	trap_init();
 	sched_init();
+	buffer_init(buffer_memory_end);
 
 	sti();
 	move_to_user_mode();
 	if (!fork()) {
+		init();
 		// child process 1
 		p = 0xb8002;
 		*p = 'a';
@@ -79,4 +87,9 @@ int main() {
 		pause();
 
 	return 0;
+}
+
+void init() {
+	setup((void *)&drive_info);
+	while (1);
 }

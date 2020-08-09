@@ -41,7 +41,7 @@ start:
 	lds 0x41*4, %si
 	movw $initseg, %ax
 	movw %ax, %es
-	movw $0x0090, %di
+	movw $0x0080, %di
 	movw $16, %cx
 	rep movsb
 
