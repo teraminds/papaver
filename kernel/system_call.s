@@ -85,7 +85,7 @@ ret_from_sys_call:  /* handle signal */
 	pop %ds
 	iret
 
-/* int 32(int 0x20) */
+/* int 32(0x20), irq0 - timer interrupt */
 .align 4
 timer_interrupt:
 	push %ds
@@ -124,3 +124,36 @@ sys_fork:
 	addl $20, %esp
 1:
 	ret
+
+/* int 46(0x2e), irq14 - hard disk interrupt */
+.align 4
+hd_interrupt:
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	push %ds
+	push %es
+	push %fs
+	movl $0x10, %eax
+	movw %ax, %ds
+	movw %ax, %es
+	movl $0x17, %eax
+	movw %ax, %fs
+	movb $0x20, %al
+	outb %al, $0xA0  /* EOI to 8259A-2 */
+	nop  // delay
+	nop
+	xorl %edx, %edx
+	xchgl do_hd, %edx
+	testl %edx, %edx
+	jne 1f
+	movl $unexpected_hd_interrupt, %edx
+1:
+	outb %al, $0x20  /* EOI to 8259A-1 */
+	call *%edx
+	pop %fs
+	pop %es
+	pop %ds
+	popl %edx
+	popl %ecx
+	popl %

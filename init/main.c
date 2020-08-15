@@ -6,8 +6,9 @@ static inline _syscall0(int, fork)
 static inline _syscall0(int, pause)
 static inline _syscall1(int, setup, void *, BIOS)
 
-#define EXT_MEM_K (*(unsigned short*)0x90002)
+#define EXT_MEM_K (*(unsigned short*)0x90002)  // extended memory of K bytes unit
 #define DRIVE_INFO (*(struct drive_info *)0x90080)
+#define ORI_ROOT_DEV ((unsigned short *)0x901fc)  // rootfs device no.
 
 static long memory_end = 0;
 static long buffer_memory_end = 0;
@@ -25,6 +26,7 @@ int main() {
 #endif
 	int i = 100000;
 
+	ROOT_DEV = ORIG_ROOT_DEV;
 	memory_end = (1<<20) + (EXT_MEM_K<<10);
 	memory_end &= 0xfffff000;  // align with 4KB
 	if (memory_end > 16<<20)
@@ -39,6 +41,7 @@ int main() {
 
 	mem_init(main_memory_start, memory_end);
 	trap_init();
+	blk_dev_init();
 	sched_init();
 	buffer_init(buffer_memory_end);
 
@@ -91,5 +94,8 @@ int main() {
 
 void init() {
 	setup((void *)&drive_info);
+	open("/dev/tty0", O_RDWR, 0);
+	dup(0);
+	dup(0);
 	while (1);
 }

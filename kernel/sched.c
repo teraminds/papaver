@@ -54,6 +54,28 @@ int sys_pause() {
 	return 0;
 }
 
+void sleep_on(struct task_struct **p) {
+	struct task_struct *tmp;
+
+	if (!p)
+		return;
+	if (current == &(init_task.task)) // task 0 cannot sleep
+		panic("task[0] is trying to sleep");
+	tmp = *p;  // tmp points to last task which is already waiting on
+	*p = current;
+	current->state = TASK_UNINTERRUPTIBLE;
+	schedule();
+	if (tmp)  // wake up the last task
+		tmp->state = 0;
+}
+
+void wake_up(struct task_struct **p) {
+	if (p && *p) {
+		(*p)->state = 0;
+		*p = NULL;
+	}
+}
+
 void do_timer(long cpl) {
 	if (cpl)
 		current->utime++;
