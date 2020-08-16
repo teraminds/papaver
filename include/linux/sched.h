@@ -62,7 +62,12 @@ struct task_struct {
 	long father; // id of father process
 	long utime;  // user mode run time
 	long stime;  // system mode(supervisor) run time
+/* file sytem info */
+	unsigned short umask;  // mask rwx atrribute when opening file
+	unsigned long close_on_exec;  // bitmap of closing open file when exec
+/* ldt */
 	struct desc_struct ldt[3];  // 0-null, 1-cs, 2-ds
+/* tss */
 	struct tss_struct tss;
 };
 
@@ -78,6 +83,8 @@ struct task_struct {
 /* father */   -1, \
 /* utime */    0, \
 /* stime */    0, \
+/* umask */    0022, \
+/* close_on_exec */  0, \
 /* ldt */      {{0, 0}, \
 				{0xff, 0xc0fa00}, \
 				{0xff, 0xc0f200}}, \

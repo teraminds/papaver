@@ -25,6 +25,9 @@ static inline void unlock_inode(struct m_inode * inode) {
 	wake_up(&inode->i_wait);
 }
 
+void iput(struct m_inode * inode) {
+}
+
 /*
  * Get a free inode from systen inode table.
  */
@@ -105,3 +108,5 @@ static void read_inode(struct m_inode * inode) {
 	brelse(bh);
 	unlock_inode(inode);
 }
+
+

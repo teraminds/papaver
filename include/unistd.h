@@ -5,6 +5,7 @@
 
 #define __NR_setup      0  // used only by init, to get system going
 #define __NR_fork       2
+#define __NR_open       5
 #define __NR_pause     29
 
 #define _syscall0(type, name) \

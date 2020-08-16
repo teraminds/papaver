@@ -9,6 +9,7 @@
 #define MAJOR(a) (((unsigned)(a))>>8)
 #define MINOR(a) ((a)&&0xff)
 
+#define NAME_LEN 14  // maximum filename length
 #define ROOT_INO 1  // root inode no.
 
 #define I_MAP_SLOTS 8  // inode bitmap blocks nr
@@ -61,7 +62,8 @@ struct super_block {
 /* Only in memory now*/
 	struct buffer_head *s_imap[8];
 	struct buffer_head *s_zmap[8];
-	
+	struct m_inode *s_isup;  // root inode of the fs
+	struct m_inode *s_imount;  // on which inode this fs is mounted on
 };
 
 // inode structure resides on disk
@@ -94,6 +96,11 @@ struct m_inode {
 
 struct file {
 	unsigned short f_count;  // file reference count
+};
+
+struct dir_entry {
+	unsigned short inode;  // inode nr
+	char name[NAME_LEN];  // filename length
 };
 
 #endif
