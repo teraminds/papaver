@@ -6,6 +6,7 @@
 extern int sys_setup();  // 0
 extern int sys_fork();  // 2
 extern int sys_open();  // 5
+extern int sys_execve()  // 11
 extern int sys_pause();  // 29
 
 typedef int (*fn_ptr)();
@@ -22,7 +23,7 @@ fn_ptr sys_call_table[] = {
 	NULL,
 	NULL,  // 9
 	NULL,
-	NULL,
+	sys_execve,  // 11
 	NULL,
 	NULL,
 	NULL,

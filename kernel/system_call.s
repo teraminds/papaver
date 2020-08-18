@@ -111,6 +111,14 @@ timer_interrupt:
 	jmp ret_from_sys_call
 
 .align 4
+sys_execve:
+	leal EIP(%esp), %eax  /* ret addr is push into stack after %ebx when "call sys_call_table" */
+	pushl %eax  /* original ret addr */
+	call do_execve
+	addl $4, %esp
+	ret
+
+.align 4
 sys_fork:
 	call find_empty_process
 	testl %eax, %eax  /* negative means error */
