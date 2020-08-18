@@ -93,9 +93,14 @@ int main() {
 }
 
 void init() {
+	int pid;
 	setup((void *)&drive_info);
 	open("/dev/tty0", O_RDWR, 0);
 	dup(0);
 	dup(0);
+	printf("Free mem: %d bytes\r\n", memory_end - main_memory_start);
+	if (!(pid=fork())) {
+		execve("/bin/sh", argv_rc, enpp_rc);
+	}
 	while (1);
 }

@@ -120,10 +120,34 @@ static struct m_inode *dir_namei(const char *pathname, int *namelen, const char 
 	return dir;
 }
 
+struct m_inode *namei(const char *pathname) {
+	const char *basename;
+	struct m_inode *dir;
+	struct buffer_head *bh;
+	struct dir_entry *de;
+
+	if (!(dir = dir_namei(pathname, &namelen, &basename)))  // cannot find directory
+		return NULL;
+	if (!namelen)  // the path is a directory, no basename
+		return dir;
+	bh = find_entry(&dir, basename, namelen, &de);
+	if (!bh) {
+		iput(dir);
+		return NULL;
+	}
+	inr = de->inode;
+	dev = dir->i_dev;
+	brelse(bh);
+	iput(dir);
+	dir = iget(dev, inr);
+	return dir;
+}
+
 int open_namei(const char *pathname, int flag, int mode, struct m_inode **res_inode) {
 	struct m_inode *dir;
 	struct m_inode *inode;
 	struct dir_entry *de;
+	struct buffer_head *bh;
 
 	if ((flag & O_TRUNC) && !(flag & O_ACCMODE))  // add wr flag if truncate flag
 		flag |= O_WRONLY;
@@ -139,4 +163,21 @@ int open_namei(const char *pathname, int flag, int mode, struct m_inode **res_in
 		iput(dir);
 		return -EISDIR;
 	}
+	bh = find_entry(&dir, basename, namelen, &de);
+	if (!bh) {  // entry not found, should be op of creating new file
+		if (!(flag & O_CREAT)) {
+			return -ENOENT;
+		}
+		if (!permission(dir, MAY_WRITE)) {
+			return -EACCES;
+		}
+		// create the new file
+	}
+	inr = de->inode;
+	dev = dir->i_dev;
+	brelse(bh);
+	iput(dir);
+	if (flag & O_EXCL)
+		return -EEXIST;
+	return 0;
 }

@@ -87,6 +87,32 @@ static struct super_block * read_super(int dev) {
 	return s;
 }
 
+/**/
+int sys_mount(char *dev_name, char *dir_name, int rw_flag) {
+	struct m_inode *dev_i;
+	struct m_inode *dir_i;
+	int dev;
+
+	if (!(dev_i=namei(dev_name)))
+		return -ENOENT;
+	if (!S_ISBLK(dev_i->i_mode)) {
+		iput(dev_i);
+		return -EPERM;
+	}
+	if (!(dir_i=namei(dir_name)))
+		return -ENOENT;
+	if (dir_i->i_count != 1 || dir_i->i_num == ROOT_INO) {
+		return -EBUSY;
+	}
+	if (!S_ISDIR(dir_i->i_mode)) {
+		return -EPERM;
+	}
+	sb = read_super(dev);
+	sb->s_imount = dir_i;
+	dir_i->imount = 1;
+	return 0;
+}
+
 void mount_root() {
 	int i, free;
 	struct super_block *s;
