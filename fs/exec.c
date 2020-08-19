@@ -17,7 +17,7 @@ static int count(char **argv) {
 
 
 /*
- * from_kmem	argv *			 argv**
+ * from_kmem	argv *			 argv **
  *    0			user space		 user space
  *    1			kernel space	 user space
  *    2			kernel space	 kernel space
@@ -30,6 +30,25 @@ static unsigned long copy_strings(int argc, char **argv, unsigned long *page,
 		return 0;
 	new_fs = get_ds();
 	old_fs = get_fs();
+	if (from_kmem == 2)
+		set_fs(new_fs);
+	while (argc-- > 0) {
+		if (from_kmem == 1)
+			set_fs(new_fs);
+		if (!(tmp = (char*)get_fs_long(((unsigned long *)argv)+argc)))
+			panic("argc is wrong");
+		if (from_kmem == 1)
+			set_fs(old_fs);
+		len = 0;
+		do {
+			len++;
+		} while (get_fs_byte(tmp++));  // copy '\0' also
+		if (p-len < 0) {  // over 128kB, should not happen
+			set_fs(old_fs);
+			return 0;
+		}
+		
+	}
 }
 
 /*
