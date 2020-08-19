@@ -42,13 +42,29 @@ static unsigned long copy_strings(int argc, char **argv, unsigned long *page,
 		len = 0;
 		do {
 			len++;
-		} while (get_fs_byte(tmp++));  // copy '\0' also
+		} while (get_fs_byte(tmp++));  // copy '\0' also, tmp now points to char after '\0'
 		if (p-len < 0) {  // over 128kB, should not happen
 			set_fs(old_fs);
 			return 0;
 		}
-		
+		while (len) {
+			--p; --tmp; --len;
+			if (--offset < 0) {
+				offset = p % PAGE_SIZE;  // offset align with p
+				if (from_kmem == 2)
+					set_fs(old_fs);  // in case of page is NULL and then return
+				if (!(pag = (char *)page[p/PAGE_SIZE]) &&
+					!(pag = (char *)page[p/PAGE_SIZE] = (unsigned long)get_free_page()))
+						return 0;
+				if (from_kmem == 2)
+					set_fs(new_fs);
+			}
+			*(pag + offset) = get_fs_byte(tmp);
+		}
 	}
+	if (from_kmem == 2)
+		set_fs(old_fs);
+	return p;
 }
 
 /*
@@ -72,6 +88,7 @@ int do_execve(unsigned long *eip, long tmp, char *filename, char **argv, char **
 	argc = count(argv);
 	envc = count(envp);
 
+restart_interp:
 	if (!S_ISREG(inode->i_mode)) {  // must be a regular file
 		retval = -EACCES;
 		goto exec_error2;
@@ -121,5 +138,38 @@ int do_execve(unsigned long *eip, long tmp, char *filename, char **argv, char **
 			p = copy_strings(envc, envp, page, p, 0);
 			p = copy_strings(--argc, argv+1, page, p, 0);
 		}
+		p = copy_strings(1, &filename, page, p, 1);
+		argc++;
+		if (i_arg) {
+			p = copy_strings(1, &i_arg, page, p, 2);
+			argc++;
+		}
+		p = copy_string(1, &i_name, page, p, 2);
+		argc++;
+		if (!p) {
+			retval = -ENOMEM;
+			goto exec_error1;
+		}
+		/* now restart the process with the interpreter's node */
+		old_fs = get_fs();
+		set_fs(get_ds());
+		if (!(inode=namei(interp))) {
+			set_fs(old_fs);
+			retval = -ENOENT;
+			goto exec_error1;
+		}
+		set_fs(old_fs);
+		goto restart_interp;
 	}
+	brelse(bh);
+	if (!sh_bang) {  // original executable is not a script
+		p = copy_strings(envc, envp, page, p, 0);
+		p = copy_strings(argc, argv, page, p, 0);
+	}
+	// free page tables of code and data segment
+	free_page_tables(get_base(current->ldt[1]), get_limit(0x0f));
+	free_page_tables(get_base(current->ldt[2]), get_limit(0x17));
+	eip[0] = ex.a_entry;  // eip
+	eip[3] = p;  // esp
+	return 0;
 }
