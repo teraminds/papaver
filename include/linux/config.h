@@ -8,6 +8,11 @@
  * default root-device by changing the line ROOT-DEV = xxx in boot/bootsect.s
  */
 
+/*
+ * define your keyboard here.
+ * KBD_US for US-type keyboard
+ */
+#define KBD_US
 
 /*
  * Normally, Linux can get the drive parameters from the BIOS at startup,
