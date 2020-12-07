@@ -5,4 +5,6 @@
 
 extern volatile void panic(const char * str);
 
+#define suser() (current->euid == 0)  // check if super user
+
 #endif

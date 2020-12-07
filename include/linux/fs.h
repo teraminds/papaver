@@ -24,6 +24,14 @@
 
 #define SUPER_MAGIC 0x137f
 
+/* pipe macros */
+#define PIPE_HEAD(inode) ((inode).i_zone[0])
+#define PIPE_TAIL(inode) ((inode).i_zone[1])
+#define PIPE_SIZE(inode) (PIPE_HEAD(inode)-PIPE_TAIL(inode))&(PAGE_SIZE-1)
+#define PIPE_EMPTY(inode) (PIPE_HEAD(inode)==PIPE_TAIL(inode))
+#define PIPE_FULL(inode) (PIPE_SIZE(inode)==(PAGE_SIZE-1))
+#define INC_PIPE(head) __asm__("incl %0\n\tandl $4095, %0"::"m"(head))
+
 struct buffer_head {
 	char * b_data;  // pointer to data block (1024 bytes)
 	unsigned long b_blocknr;  // block number

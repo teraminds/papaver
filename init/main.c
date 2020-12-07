@@ -10,6 +10,8 @@ static inline _syscall1(int, setup, void *, BIOS)
 #define DRIVE_INFO (*(struct drive_info *)0x90080)
 #define ORI_ROOT_DEV ((unsigned short *)0x901fc)  // rootfs device no.
 
+static char printbuf[1024];
+
 static long memory_end = 0;
 static long buffer_memory_end = 0;
 static long main_memory_start = 0;
@@ -92,12 +94,23 @@ int main() {
 	return 0;
 }
 
+static int printf(const char *fmt, ...) {
+	va_list args;
+	int i;
+
+	va_start(args, fmt);
+	write(1, printbuf, i=vsprintf(printbuf, fmt, args));
+	va_end(args);
+
+	return i;
+}
+
 void init() {
 	int pid;
 	setup((void *)&drive_info);
-	open("/dev/tty0", O_RDWR, 0);
-	dup(0);
-	dup(0);
+	open("/dev/tty0", O_RDWR, 0);  // fd 0
+	dup(0);  // fd 1
+	dup(0);  // fd 2
 	printf("Free mem: %d bytes\r\n", memory_end - main_memory_start);
 	if (!(pid=fork())) {
 		execve("/bin/sh", argv_rc, enpp_rc);

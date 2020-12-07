@@ -5,7 +5,7 @@
 
 typedef unsigned int sigset_t;
 
-#define SIGCHLD 18  // child process ends
+#define SIGCHLD 17  // child process ends
 
 #define SA_NOMASK  0x40000000  // do not mask the signal when the signal is being handled
 #define SA_ONESHOT  0x80000000  // one-time shot, only called once - restoring to the default handler once the handler is called

@@ -10,7 +10,7 @@ struct super_block super_block[NR_SUPER];
 int ROOT_DEV = 0;  // root file system device no.
 
 static void wait_on_super(struct super_block *sb) {
-	cli;
+	cli();
 	while (sb->s_lock)
 		sleep_on(&sb->s_wait);
 	sti();
@@ -21,7 +21,7 @@ struct super_block * get_super(int dev) {
 
 	s = super_block;
 	while (s < super_block + NR_SUPER) {
-		if (s->s_dev = dev) {
+		if (s->s_dev == dev) {
 			wait_on_super(s);
 			is (s->s_dev == dev)
 				return s;
