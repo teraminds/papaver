@@ -3,6 +3,19 @@
 #include <linux/tty.h>
 #include <errno.h>
 
+/* check if the flag is set in corresponding mode flagset  */
+#define _L_FLAG(tty, f)  ((tty)->termios.c_lflag & f)  // local mode flag
+#define _I_FLAG(tty, f)  ((tty)->termios.c_iflag & f)  // input mode flag
+#define _O_FLAG(tty, f)  ((tty)->termios.c_oflag & f)  // control mode flag
+
+#define L_CANON(tty)  _L_FLAG((tty), ICANON)  // canonical mode
+#define L_ISIG(tty)  _L_FLAG((tty), ISIG)  // send signal
+#define L_ECHO(tty)  _L_ECHO((tty), ECHO)  // echo input char
+
+#define I_UCLC(tty)  _I_FLAG((tty), IUCLC)  // change upper char to lower char
+#define I_NLCR(tty)  _I_FLAG((tty), INLCR)  // change NL to CR
+#define I_CRNL(tty)  _I_FLAG((tty), ICRNL)  // change CR to NL
+#define I_NOCR(tty)  _I_FLAG((tty), IGNCR)  // ignore CR
 
 struct tty_struct tty_table[] = {
 	/* console */
@@ -111,6 +124,84 @@ void wait_for_keypress() {
 }
 
 void copy_to_cooked(struct tty_struct * tty) {
+	char c;
+
+	while (!EMPTY(tty->read_q) && !FULL(tty->secondary)) {
+		GETCH(tty->read_q, c);
+		if (c == 13) { // CR(13, '\r')
+			if (I_CRNL(tty))
+				c = 10;  // LR(10, '\n')
+			else if (I_NOCR(tty))
+				continue;
+		} else if (c==10 && I_NLCR(tty)) {
+			c = 13;
+		}
+		if (I_UCLC(tty))
+			c = tolower(c);
+		if (L_CANON(tty)) {
+			if (c == KILL_CHAR(tty)) {
+				/* deal with killing the input line */
+				while (!(EMPTY(tty->secondary) || (c=LAST(tty->secondary))==10 || c==EOF_CHAR(tty))) {
+					if (L_ECHO(tty)) {
+						if (c < 32)  // control char is two bytes in write queue
+							PUTCH(127, tty->write_q);  // DEL(127)
+						PUTCH(127, tty->write_q);
+						tty->write(tty);
+					}
+					DEC(tty->secondary.head);
+				}
+				continue;
+			}
+			if (c == ERASE_CHAR(tty)) {
+				if (EMPTY(tty->secondary) || (c=LAST(tty->secondary))==10 || c==EOF_CHAR(tty))
+					continue;
+				if (L_ECHO(tty)) {
+					if (c < 32)
+						PUTCH(127, tty->write_q);
+					PUTCH(127, tty->write_q);
+					tty->write(tty);
+				}
+				DEC(tty->secondary.head);
+				continue;
+			}
+			if (c == STOP_CHAR(tty)) {
+				tty->stopped = 1;
+				continue;
+			}
+			if (c == START_CHAR(tty)) {
+				tty->stopped = 0;
+				continue;
+			}
+		}  // end of L_CANON(tty)
+		if (L_ISIG) {
+			if (c == INTR_CHAR(tty)) {
+				tty_intr(tty, INTMASK);
+				continue;
+			}
+			if (c == QUIT_CHAR(tty)) {
+				tty_intr(tty, QUITMASK);
+				continue;
+			}
+		}
+		if (c == 10 || c == EOF_CHAR(tty))  // \n or ^D
+			tty->secondary.data++;
+		if (L_ECHO(tty)) {
+			if (c == 10) {
+				PUTCH(10, tty->write_q);
+				PUTCH(13, tty->write_q);
+			} else if (c < 32) {
+				if (L_ECHOCTL) {
+					PUTCH('^', tty->write_q);
+					PUTCH(c+64, tty->write_q);
+				}
+			} else {
+				PUTCH(c, tty->write_q);
+			}
+			tty->write(tty);
+		}
+		PUTCH(c, tty->secondary);
+	}  // end of while
+	wake_up(&tty->secondary.proc_list);
 }
 
 /*
@@ -234,6 +325,7 @@ int tty_write(unsigned channel, char *buf, int nr) {
 }
 
 void do_tty_interrupt(int tty) {
+	copy_to_cooked(tty_table + tty);
 }
 
 void chr_dev_init() {

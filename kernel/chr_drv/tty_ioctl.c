@@ -94,6 +94,9 @@ static int set_termio(struct tty_struct * tty, struct termio * termio) {
 	return 0;
 }
 
+/*
+ * tty terminal input/output control
+ */
 int tty_ioctl(int dev, int cmd, int arg) {
 	struct tty_struct * tty;
 

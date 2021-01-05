@@ -1,17 +1,47 @@
 /* kernel/chr_drv/console.c */
 
+/*
+ * Key points to manipulate console
+ *
+ * 1. video memory
+ * 2. window origin
+ * 3. cursor position
+ */
+
 #define ORIG_X  (*(unsigned char *)0x90000)  // cursor column
 #define ORIG_Y  (*(unsigned char *)0x90001)  // cursor row
 #define ORIG_VIDEO_PAGE  (*(unsigned short *)0x90004)  // video page
 #define ORIG_VIDEO_MODE  (*(unsigned char *)0x90006)  // video mode
 #define ORIG_VIDEO_COLS  (*(unsigned char *)0x90007)  // columns per row
 #define ORIG_VIDEO_LINES (25)  // video rows
+#define ORIG_VIDEO_EGA_AX  (*(unsigned short *)0x90008)  // ??
+#define ORIG_VIDEO_EGA_BX  (*(unsigned short *)0x9000a)  // display memory size and color mode
+#define ORIG_VIDEO_EGA_CX  (*(unsigned short *)0x9000c)  // display card properties
 
+#define VIDEO_TYPE_MDA  0x10  // Monochrome Text Display
+#define VIDEO_TYPE_CGA  0x11  // CGA Display
+#define VIDEO_TYPE_EGAM 0x20  // EGA/VGA in Monochrome Mode
+#define VIDEO_TYPE_EGAC 0x21  // EGA/VGA in Color Mode
+
+static unsigned char video_type;  /* Type of display being used */
 static unsigned long video_num_columns;  /* Number of text columns */
 static unsigned long video_size_row;  /* Bytes per row */
 static unsigned long video_num_lines;  /* Number of text lines(rows) */
+static unsigned char video_page;  /* Initial video page */
+static unsigned long video_mem_start;  /* Start of video RAM */
+static unsigned long video_mem_end;  /* ENd of video RAM */
+static unsigned short video_port_reg;  /* Video register select port */
+static unsigned short video_port_val;  /* Video register value port */
+static unsigned short video_erase_char;  /* Char+Attrib to erase with */
 
-static unsigned long state = 0;
+static unsigned long origin;  /* Used for EGA/VGA fast scroll, address of top left */
+static unsigned long src_end;  /* Used for EGA/VGA fast scroll, address of bottom right(beyond) */
+static unsigned long pos;  /* video memory address of current cursor */
+static unsigned long x, y;  /* current cursor position, x=col, y=row */
+static unsigned long top, bottom;  /* top and bottom row nr */
+static unsigned long state = 0;  /* write queue processing state */
+
+#define RESPONSE "\033[?1;2c"
 
 /*
  * Cursor goes to a new position.
@@ -38,13 +68,15 @@ static inline void set_origin() {
 	sti();
 }
 
+/* Scroll the content up one line, equals to window scroll down */
 static void scrup() {
+	/* EGA/VGA support scroll limited rows */
 	if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM) {
-		if (!top && bottom == video_num_lines) {  // the whole screen down
-			origin += video_size_row;
-			pos += video_size_row;
-			scr_end += video_size_row;
-			if (scr_end > video_mem_end) {
+		if (!top && bottom == video_num_lines) {  // scroll the whole screen
+			origin += video_size_row;  // origin scrolls to the address of the start of the top+1 line
+			pos += video_size_row;  // cursor keeps the original x, y, pos scrolls to next line
+			scr_end += video_size_row;  // src_end scrolls to the address of end of the bottom line
+			if (scr_end > video_mem_end) {  // move origin to mem_start
 				__asm__(
 					"cld\n\t"
 					"rep movsl\n\t"
@@ -66,7 +98,7 @@ static void scrup() {
 					  "c"(video_num_columns),
 					  "D"(src_end-video_size_row));
 			}
-		} else {
+		} else {  // scroll top~bottom-1, top will be deleted
 			__asm__(
 				"cld\n\t"
 				"rep movsl\n\t"
@@ -126,18 +158,279 @@ static void ri() {
 	scrdown();
 }
 
-/* carriage return */
+/* carriage return, cursor goto the start of the line */
 static void cr() {
 	pos -= x << 1;
 	x = 0;
 }
 
+/* delete a char */
 static void del() {
 	if (x) {
 		pos -= 2;
 		x--;
 		*(unsigned short *)pos = video_erase_char;
 	}
+}
+
+/*
+ * Erase screen.
+ * 'ESC [ s J'
+ * s=0: erase from cursor to end of display
+ * s=1: erase from start to cursor
+ * s=2: erase while display
+*/
+static void csi_J(int par) {
+	long count;
+	long start;
+
+	switch (par) {
+		case 0:  // erase from cursor to end of display
+			count = (src_end-pos) >> 1;
+			start = pos;
+			break;
+		case 1:  // erase from start to cursor
+			count = (pos-origin) >> 1;
+			start = origin;
+			break;
+		case 2:  // erase whole display
+			count = video_num_columns * video_num_lines;
+			start = origin;
+			break;
+		default:
+			return;
+	}
+	// earse
+	__asm__(
+		"cld\n\t"
+		"rep\n\t"
+		"stosw\n\t"
+		::"c"(count), "D"(start), "a"(video_erase_char));
+}
+
+/*
+ * Erase line.
+ * 'ESC [ s K'
+ * s=0: erase from cursor to end of line
+ * s=1: erase from start of line to cursor
+ * s=2: erase whole line
+ */
+static void csi_K(int par) {
+	long count;
+	long start:
+
+	switch (par) {
+		case 0:  // erase from cursor to end of line
+			if (x >= video_num_columns)
+				return;
+			count = video_num_columns - x;
+			start = pos;
+			break;
+		case 1:  // erase from start of line to cursor
+			start = pos - (x<<1);
+			count = (x<video_num_colums) ? x : video_num_columns;
+			break;
+		case 2:  // erase whole line
+			start = pos - (x<<1);
+			count = video_num_columns;
+			break;
+		default:
+			return;
+	}
+	__asm__(
+		"cld\n\t"
+		"rep\n\t"
+		"stosw\n\t"
+		::"c"(count), "D"(start), "a"(video_erase_char));
+}
+
+/*
+ * Insert a char at cursor.
+ * Chars from cursor to line end will be moved one char right.
+ * Rightmost char will be dropped. An empty char will be filled at cursor.
+ */
+static void insert_char() {
+	int i = x;
+	unsigned short tmp;
+	unsigned short old = video_erase_char;
+	unsigned short *p = (unsigned short *)pos;
+
+	while (i++ < video_num_columns) {
+		tmp = *p;
+		*p = old;
+		old = tmp;
+		p++;
+	}
+}
+
+/*
+ * Insert a line at cursor.
+ * Content from cursor line to bottom line will scroll down one line, cursor will
+ * be at the new empty line.
+ */
+static void insert_line() {
+	int oldtop;
+	int oldbottom;
+
+	oldtop = top;
+	oldbottom = bottom;
+	top = y;
+	bottom = video_num_lines;
+	scrdown();
+	top = oldtop;
+	bottom = oldbottom;
+}
+
+/*
+ * Delete a char at cursor.
+ * Chars at right of cursor will be moved one char left. Rightmost char will
+ * be filled with erase char.
+ */
+static void delete_char() {
+	int i;
+	unsigned short *p = (unsigned short *)pos;
+
+	if (x >= video_num_columns)
+		return;
+	i = x;
+	while (++i < video_num_columns) {
+		*p = *(p+1);
+		p++;
+	}
+	*p = video_erase_char;
+}
+
+/*
+ * Delete a line at cursor.
+ * Content below cursor will scroll up one line, an empty line will be at bottom.
+ */
+static void delete_line() {
+	int oldtop;
+	int oldbottom;
+
+	oldtop = top;
+	oldbottom = bottom;
+	top = y;
+	bottom = video_num_lines;
+	scrup();
+	top = oldtop;
+	bottom = oldbottom;
+}
+
+/*
+ * Insert empty lines at cursor
+ * 'ESC [ n L'
+ */
+static void csi_L(unsigned int nr) {
+	if (nr > video_num_lines) {
+		nr = video_num_lines;
+	} else if (!nr) {
+		nr = 1;
+	}
+	while (nr--) {
+		insert_line();
+	}
+}
+
+/*
+ * Delete lines at cursor
+ * 'ESC [ n M'
+ */
+static void csi_M(unsigned int nr) {
+	if (nr > video_num_lines) {
+		nr = video_num_lines;
+	} else if (!nr) {
+		nr = 1;
+	}
+	while (nr--) {
+		delete_line();
+	}
+}
+
+/*
+ * Delete chars at cursor.
+ * 'ESC [ n P'
+ */
+static void csi_P(unsigned int nr) {
+	if (nr > video_num_columns) {
+		nr = video_num_columns;
+	} else if (!nr) {
+		nr = 1;
+	}
+	while (nr--) {
+		delete_char();
+	}
+}
+
+/*
+ * Insert chars at cursor.
+ * 'ESC [ n @'
+ */
+static void csi_at(unsigned int nr) {
+	if (nr > video_num_columns) {
+		nr = video_num_columns;
+	} else if (!nr) {
+		nr = 1;
+	}
+	while (nr--) {
+		insert_char();
+	}
+}
+
+/*
+ * Modify char attribute. All chars sent to terminal later will use this attr.
+ * 'ESC [ s m'
+ * s=0: default attr
+ * s=1: bold
+ * s=4: underscore
+ * s=7: reverse display
+ * s=27: normal display
+ */
+static void csi_m() {
+	int i;
+
+	for (i=0; i<npar; i++) {
+		switch (par[i]) {
+			case 0: attr = 0x07; break;
+			case 1: attr = 0x0f; break;
+			case 4: attr = 0x0f; break;
+			case 7: attr = 0x70; break;
+			case 27: attr = 0x07; break;
+		}
+	}
+}
+
+static int saved_x = 0;
+static int saved_y = 0
+
+static void save_cur() {
+	saved_x = x;
+	saved_y = y;
+}
+
+static restore_cur() {
+	gotoxy(saved_x, saved_y);
+}
+
+static void respond(struct tty_struct *tty) {
+	char *p = RESPONSE;
+
+	cli();
+	while (*p) {
+		PUTCH(*p, tty->read_q);
+		p++;
+	}
+	sti();
+	copy_to_cooked(tty);
+}
+
+static inline void set_cursor() {
+	cli();
+	outb_p(14, video_port_reg);  // choose r14, cursor position high byte
+	outb_p(0xff&((pos-video_mem_start)>>9), video_port_val);
+	outb_p(15, video_port_reg);  /// choose r15, cursor position low byte
+	outb_p(0xff&((pos-video_mem_start)>>1), video_port_val);
+	sti();
 }
 
 /*
@@ -158,10 +451,13 @@ void con_write(struct tty_struct * tty) {
 			case 0:
 				if (31 < c && c < 127) {  // 32~126=0x20~0x7e, normal display char
 					if (x >= video_num_columns) {  // new line
+						// cursor goto line head
 						x -= video_num_columns;
 						pos -= video_size_row;
+						// cursor goto next line 
 						lf();
 					}
+					// write the char
 					__asm__(
 						"movb attr, %%ah\n\t"
 						"movw %%ax, %1\n\t"
@@ -184,7 +480,7 @@ void con_write(struct tty_struct * tty) {
 					}
 				} else if (c == 9) {  // 9=0x09, HT(horizontal tab)
 					c = 8 - (x & 7)
-					x += c;
+					x += c;  // x jump to next 8-aligned num
 					pos += c << 1;
 					if (x > video_num_columns) {
 						x -= video_num_columns;
@@ -215,7 +511,7 @@ void con_write(struct tty_struct * tty) {
 				}
 				break;
 			case 2:
-				for (npar = 0; npar < NPAR; npar++)
+				for (npar = 0; npar < NPAR; npar++)  // reset par
 					par[npar] = 0;
 				npar = 0;
 				state = 3;
@@ -235,78 +531,78 @@ void con_write(struct tty_struct * tty) {
 				state = 0;
 				switch (c) {
 					case 'G':
-					case '`':
+					case '`':  // CSI Pn G, cursor moves horizontaly
 						if (par[0])
 							par[0]--;
 						gotoxy(par[0], y);
 						break;
 					case 'A':
 						if (!par[0])
-							par[0]++;
+							par[0]++;  // CSI Pn A, cursor moves upward
 						gotoxy(x, y-par[0]);
 						break;
 					case 'B':
-					case 'e':
+					case 'e':  // CSI Pn B, cursor moves downward
 						if (!par[0])
 							par[0]++;
 						gotoxy(x, y+par[0]);
 						break;
 					case 'C':
-					case 'a':
+					case 'a':  // CSI Pn C, cursor moves right
 						if (!par[0])
 							par[0]++;
 						gotoxy(x+par[0], y);
 						break;
-					case 'D':
+					case 'D':  // CSI Pn D, cursor moves left
 						if (!par[0])
 							par[0]++;
 						gotoxy(x-par[0], y);
 						break;
-					case 'E':
+					case 'E':  // CSI Pn E, cursor moves downward and goto col 0
 						if (!par[0])
 							par[0]++;
 						gotoxy(0, y+par[0]);
 						break;
-					case 'F':
+					case 'F':  // CSI Pn F, cursor moves upward and goto col 0
 						if (!par[0])
 							par[0]++;
 						gotoxy(0, y-par[0]);
 						break;
-					case 'd':
+					case 'd':  // CSI Pn d, set cursor row
 						if (par[0])
 							par[0]--;
 						gotoxy(x, par[0]);
 						break;
 					case 'H':
-					case 'f':
+					case 'f':  // CSI Pn H, set cursor row, col
 						if (par[0])
 							par[0]--;
 						if (par[1])
 							par[1]--;
 						gotoxy(par[1], par[0]);
 						break;
-					case 'J':
+					case 'J':  // CSI Pn J, erase screen
 						csi_J(par[0]);
 						break;
-					case 'K':
+					case 'K':  // CSI Pn K, erase line
 						csi_K(par[0]);
 						break;
-					case 'L':
+					case 'L':  // CSI Pn L, insert lines
 						csi_L(par[0]);
 						break;
-					case 'M':
+					case 'M':  // CSI Pn M, delete lines
 						csi_M(par[0]);
 						break;
-					case 'P':
+					case 'P':  // CSI Pn P, delete chars
 						csi_P(par[0]):
 						break;
-					case '@':
+					case '@':  // CSI Pn @, insert chars
 						csi_at(par[0]):
 						break;
-					case 'm':
+					case 'm':  // CSI Ps m, modify char attribute
 						csi_m(par[0]);
 						break;
-					case 'r':
+					case 'r':  // CSI Pn;Pn r, set scroll top and bottom
 						if (par[0])
 							par[0]--;
 						if (!par[1])
@@ -316,10 +612,10 @@ void con_write(struct tty_struct * tty) {
 							bottom = par[1];
 						}
 						break;
-					case 's':
+					case 's':  // CSI s, save cursor position
 						save_cur();
 						break;
-					case 'u':
+					case 'u':  // CSI u, restore cursor position
 						restore_cur();
 						break;
 				}
@@ -344,32 +640,33 @@ void con_init() {
 
 	if (ORIG_VIDEO_MODE == 7) {  // monochrome display mode
 		video_mem_start = 0xb0000;
-		video_port_reg = 0x3b4;  // index register port
-		video_port_val = 0x3b5;  // data register port
+		video_port_reg = 0x3b4;  // MDA index register port
+		video_port_val = 0x3b5;  // MDA data register port
+		/* MDA does not support ah=0x12 call, bl will be 0x10 */
 		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {  // EGA card
 			video_type = VIDEO_TYPE_EGAM;
-			video_mem_end = 0xb8000;
+			video_mem_end = 0xb8000;  // 32K
 			display_desc = "EGAm";
 		} else {  // MDA card
 			video_type = VIDEO_TYPE_MDA;
-			video_mem_end = 0xb2000;
+			video_mem_end = 0xb2000;  // 8K
 			display_desc = "*MDA";
 		}
 	} else {  // color display mode
 		video_mem_start = 0xb8000;
-		video_port_reg = 0x3d4;
-		video_port_val = 0x3d5;
+		video_port_reg = 0x3d4;  // CGA index register port
+		video_port_val = 0x3d5;  // CGA data register port
 		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
 			video_type = VIDEO_TYPE_EGAC;
-			video_mem_end = 0xbc000;
+			video_mem_end = 0xbc000;  // 16K
 			display_desc = "EGAc";
 		} else {
 			video_type = VIDEO_TYPE_CGA;
-			video_mem_end = 0xba000;
+			video_mem_end = 0xba000;  // 8K
 			display_desc = "*CGA";
 		}
 	}
-	/* let user know what kind of display driver we are using */
+	/* let user know what kind of display driver we are using(display desc on top right) */
 	display_ptr = ((char *)video_mem_start) + video_size_row - 8;
 	while (*display_desc) {
 		*display_ptr = *display_desc;
