@@ -48,6 +48,11 @@ int main() {
 	buffer_init(buffer_memory_end);
 
 	sti();
+	/*
+	 * Construct an iret environment and iret to user mode.
+	 * Current stack will be used as task 0 user space stack.
+	 * esp0 will be the page end of task 0.
+	 */
 	move_to_user_mode();
 	if (!fork()) {
 		init();

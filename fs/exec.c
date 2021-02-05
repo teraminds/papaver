@@ -73,6 +73,7 @@ static unsigned long copy_strings(int argc, char **argv, unsigned long *page,
  * eip - points to the eip of intr block
  */
 int do_execve(unsigned long *eip, long tmp, char *filename, char **argv, char **envp) {
+	struct exec ex;
 	int i, argc, argv;
 	int e_uid, e_gid;
 	unsigned long page[MAX_ARG_PAGES];

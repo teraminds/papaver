@@ -36,8 +36,10 @@ int copy_mem(int nr, struct task_struct *p) {
 	if (data_limit < code_limit)
 		panic("Bad data limit");
 	new_data_base = new_code_base = nr * 0x4000000;
+	/* task[nr] ldt points to right base address(linear address)*/
 	set_base(p->ldt[1], new_code_base);
 	set_base(p->ldt[2], new_data_base);
+	/**/
 	if (copy_page_tables(old_data_base, new_data_base, data_limit)) {
 		free_page_tables(new_data_base, data_limit);
 		return -ENOMEM;
@@ -54,6 +56,7 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 	int i;
 	struct file *f;
 
+	/* Allocate a free page from main memory for the new task struct */
 	p = (struct task_struct *)get_free_page();
 	if (!p)
 		return -EAGAIN;
@@ -66,6 +69,7 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 	p->signal = 0;
 	p->utime = p->stime = 0;
 
+	/* modify tss(reside in task_struct) */
 	p->tss.back_link = 0;
 	p->tss.esp0 = (long)p + PAGE_SIZE;
 	p->tss.eip = eip;
@@ -84,7 +88,7 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 	p->tss.ds = ds & 0xffff;
 	p->tss.fs = fs & 0xffff;
 	p->tss.gs = gs & 0xffff;
-	p->tss.ldt = _LDT(nr);
+	p->tss.ldt = _LDT(nr);  /* task[nr] ldt selector */
 
 	if (copy_mem(nr, p)) {
 		task[nr] = NULL;
@@ -92,6 +96,7 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 		return -EAGAIN;
 	}
 
+	/* in gdt, task[nr] tss and ldt descriptors point to the rightful segments */
 	set_tss_desc(gdt+(FIRST_TSS_ENTRY+nr*2), &(p->tss));
 	set_ldt_desc(gdt+(FIRST_LDT_ENTRY+nr*2), &(p->ldt));
 	p->state = TASK_RUNNING;
@@ -99,6 +104,10 @@ int copy_process(int nr, long ebp, long edi, long esi, long gs, long none,
 	return last_pid;
 }
 
+/*
+ * Find an unused pid and an empty task slot.
+ * new pid is stored in last_pid, return the empty task slot index.
+ */
 int find_empty_process() {
 	int i;
 
@@ -109,7 +118,7 @@ int find_empty_process() {
 			if (task[i] && task[i]->pid == last_pid)  // the new pid is occupied
 				break;
 		}
-		if (NR_TASKS == i)
+		if (NR_TASKS == i)  // this pid is a new one
 			break;
 	}
 	for(i=1; i<NR_TASKS; i++)  // exclude task 0

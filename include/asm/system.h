@@ -3,6 +3,7 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
+/* iret to user mode */
 #define move_to_user_mode() \
 __asm__("movl %%esp, %%eax;" \
 	"pushl $0x17;" \

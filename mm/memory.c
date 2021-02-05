@@ -21,6 +21,7 @@ static inline volatile void oom() {
 
 /*
  * Get a free page.
+ * Scan mem_map, find a zero byte. Mark and clean.
  * Return value: the physical address of the free page. 0 if no free page.
  */
 unsigned long get_free_page() {
@@ -31,7 +32,7 @@ unsigned long get_free_page() {
 		"movb $1, 1(%%edi);"  /* mark the page as used */
 		"shll $12, %%ecx;"
 		"addl %2, %%ecx;"
-		"movl %%ecx, %%edx;"
+		"movl %%ecx, %%edx;"  /* calculate the physical address */
 		"movl $1024, %%ecx;"
 		"leal 4092(%%edx), %%edi;"
 		"rep stosl;"  /* clear the page */
@@ -77,7 +78,7 @@ int copy_page_tables(unsigned long from, unsigned long to, long size) {
 
 	if ((from & 0x3fffff) || (to & 0x3fffff))
 		panic("copy_page_tables called with wrong alignment");
-	from_dir = (unsigned long*)((from>>20) & 0xffc);  /* page_dir = 0 */
+	from_dir = (unsigned long*)((from>>20) & 0xffc);  /* page dir entry address(pdbr = 0) */
 	to_dir = (unsigned long*)((to>>20) & 0xffc);
 	size = (size+0x3fffff) >> 22;
 #ifdef shvm
@@ -88,11 +89,11 @@ int cnt = 0;
 			panic("copy_page_tables: already exits");
 		if (!(1 & *from_dir))
 			continue;
-		from_page_table = (unsigned long*)(*from_dir & 0xfffff000);
+		from_page_table = (unsigned long*)(*from_dir & 0xfffff000);  /* page table address */
 		if (!(to_page_table = (unsigned long*)get_free_page()))
 			return -1;  // out of memory
 		*to_dir = ((unsigned long)to_page_table) | 0x7;
-		nr = (0 == from) ? 0x100 : 1024;
+		nr = (0 == from) ? 0x100 : 1024;  /* from==0 means copy from task 0 */
 		for (; nr-->0; from_page_table++, to_page_table++) {
 			this_page = *from_page_table;
 			if (!(1 & this_page))
@@ -209,11 +210,13 @@ void mem_init(long start_mem, long end_mem) {
 	int i;
 
 	HIGH_MEMORY = end_mem;
+	/* Mark all pages as used */
 	for (i=0; i<PAGING_PAGES; i++)
 		mem_map[i] = USED;
 
 	start_mem = MAP_NR(start_mem);
 	end_mem = MAP_NR(end_mem);
+	/* Mark the start~end pages as usable */
 	for (i=start_mem; i<end_mem; i++)
 		mem_map[i] = 0;
 }
